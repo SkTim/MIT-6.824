@@ -1,5 +1,14 @@
 package mapreduce
 
+import (
+	"hash/fnv"
+	"fmt"
+	"os"
+	"io/ioutil"
+	"encoding/json"
+	"sort"
+)
+
 func doReduce(
 	jobName string, // the name of the whole MapReduce job
 	reduceTask int, // which reduce task this is
@@ -44,4 +53,40 @@ func doReduce(
 	//
 	// Your code here (Part I).
 	//
+	key_values := make(map[string][]string)
+	for i := 0; i < nMap; i++ {
+		fn = reduceName(jobName, i, reduceTask)
+		file, err = os.Open(fn)
+		if err != nil {
+			fmt.Printf("Error reading %s", fn)
+		} else {
+			enc := json.NewDecoder(file)
+			for {
+				var kv KeyValue
+				err := json.Decode(&kv)
+				if err != nil {break}
+				_, ok = key_values[key]
+				if !ok {ke_values[key] = make([]string, 0)}
+				key_values[kv.Key] = append(keyValues[kv.Key], kv.Value)
+			}
+		}
+		file.Close()
+	}
+	r_wc := make(map[string]string)
+	for k, v := range key_values {
+		r_wc = reduceF(k, v)
+	}
+	var ss []KeyValue
+	for k, v := range r_wc {
+		ss = append(ss, KeyValue{k, v})
+	}
+	sort.Slice(ss, func(i, j int) bool {
+		return ss[i].Value < ss[j].Value
+	})
+	file,err := os.Create(mergeName(jobName, reduceTaskNumber))
+	enc := json.NewEncoder(file)
+	for _,kv := range ss {
+		enc.Encode(kv)
+	}
+	file.Close()
 }
