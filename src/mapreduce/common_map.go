@@ -64,8 +64,8 @@ func doMap(
 	str := string(b) // convert content to a 'string'
 	key_values := mapF(inFile, str)
 	for i:= 0; i < nReduce; i++ {
-		fn := reduceName(jobName, mapTaskNumber, i)
-		output_file := os.Creat(fn)
+		fn := reduceName(jobName, mapTask, i)
+		output_file := os.Create(fn)
 		enc := json.NewEncoder(output_file)
 		for _, kv := range key_values {
 			err := enc.Encode(&kv)
