@@ -67,7 +67,7 @@ func doMap(
 		fn = reduceName(jobName, mapTaskNumber, i)
 		output_file = os.Creat(fn)
 		enc := json.NewEncoder(output_file)
-		for _, kv := key_values {
+		for _, kv := range key_values {
 			drr := enc.Encode(&kv)
 		}
 		output_file.Close()
