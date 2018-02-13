@@ -55,8 +55,8 @@ func doReduce(
 	//
 	key_values := make(map[string][]string)
 	for i := 0; i < nMap; i++ {
-		fn = reduceName(jobName, i, reduceTask)
-		file, err = os.Open(fn)
+		fn := reduceName(jobName, i, reduceTask)
+		file, err := os.Open(fn)
 		if err != nil {
 			fmt.Printf("Error reading %s", fn)
 		} else {
@@ -65,7 +65,7 @@ func doReduce(
 				var kv KeyValue
 				err := json.Decode(&kv)
 				if err != nil {break}
-				_, ok = key_values[key]
+				_, ok := key_values[key]
 				if !ok {ke_values[key] = make([]string, 0)}
 				key_values[kv.Key] = append(keyValues[kv.Key], kv.Value)
 			}
