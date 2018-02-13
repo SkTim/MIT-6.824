@@ -65,10 +65,13 @@ func doMap(
 	key_values := mapF(inFile, str)
 	for i:= 0; i < nReduce; i++ {
 		fn := reduceName(jobName, mapTask, i)
-		output_file := os.Create(fn)
+		output_file, _ := os.Create(fn)
 		enc := json.NewEncoder(output_file)
 		for _, kv := range key_values {
 			err := enc.Encode(&kv)
+			if err != nil {
+				fmt.Printf("Error reading key %s", kv.Key)
+			}
 		}
 		output_file.Close()
 	}

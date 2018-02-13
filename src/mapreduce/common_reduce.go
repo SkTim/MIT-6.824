@@ -1,10 +1,10 @@
 package mapreduce
 
 import (
-	"hash/fnv"
+	// "hash/fnv"
 	"fmt"
 	"os"
-	"io/ioutil"
+	// "io/ioutil"
 	"encoding/json"
 	"sort"
 )
@@ -63,18 +63,18 @@ func doReduce(
 			enc := json.NewDecoder(file)
 			for {
 				var kv KeyValue
-				err := json.Decode(&kv)
+				err := enc.Decode(&kv)
 				if err != nil {break}
-				_, ok := key_values[key]
-				if !ok {ke_values[key] = make([]string, 0)}
-				key_values[kv.Key] = append(keyValues[kv.Key], kv.Value)
+				_, ok := key_values[kv.Key]
+				if !ok {key_values[kv.Key] = make([]string, 0)}
+				key_values[kv.Key] = append(key_values[kv.Key], kv.Value)
 			}
 		}
 		file.Close()
 	}
 	r_wc := make(map[string]string)
 	for k, v := range key_values {
-		r_wc = reduceF(k, v)
+		r_wc[k] = reduceF(k, v)
 	}
 	var ss []KeyValue
 	for k, v := range r_wc {
@@ -83,7 +83,7 @@ func doReduce(
 	sort.Slice(ss, func(i, j int) bool {
 		return ss[i].Value < ss[j].Value
 	})
-	file,err := os.Create(mergeName(jobName, reduceTaskNumber))
+	file, _ := os.Create(mergeName(jobName, reduceTask))
 	enc := json.NewEncoder(file)
 	for _,kv := range ss {
 		enc.Encode(kv)
