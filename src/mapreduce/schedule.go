@@ -53,18 +53,19 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	var wg sync.WaitGroup
 	for i := 0; i < ntasks; i++ {
 		wg.Add(1)
-		go func() {
+		var fn string
+		switch phase {
+			case mapPhase:
+				fn = mapFiles[i]
+			case reducePhase:
+				fn = ""
+		}
+		fmt.Printf("Schedule: %v %v tasks fn = %v\n", i, phase, fn)
+		go func(task_id int, phase jobPhase, n_other int, fn string) {
 			for {
 				worker := <-registerChan
 				var task DoTaskArgs
 				task.JobName = jobName
-				var fn string
-				switch phase {
-				case mapPhase:
-					fn = mapFiles[i]
-				case reducePhase:
-					fn = ""
-				}
 				task.File = fn
 				task.Phase = phase
 				task.NumOtherPhase = n_other
@@ -75,7 +76,7 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 					break
 				}
 			}
-		}
+		}(i, phase, n_other, fn)
 	}
 	wg.Wait()
 	fmt.Printf("Schedule: %v done\n", phase)
