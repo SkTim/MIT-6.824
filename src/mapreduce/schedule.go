@@ -68,6 +68,7 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 				task.JobName = jobName
 				task.File = fn
 				task.Phase = phase
+				task.TaskNumber = task_id
 				task.NumOtherPhase = n_other
 				ok := call(worker, "Worker.DoTask", &task, nil)
 				if ok {
