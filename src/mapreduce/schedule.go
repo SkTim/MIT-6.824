@@ -53,7 +53,22 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	var wg sync.WaitGroup
 	for i := 0; i < ntasks; i++ {
 		wg.Add(1)
-		go assign_job(wg, jobName, i, n_other, mapFiles, phase, registerChan)
+		go func() {
+			for {
+				worker := <-registerChan
+				var task DoTaskArgs
+				task.JobName = jobName
+				task.File = mapFiles[i]
+				task.Phase = phase
+				task.NumOtherPhase = n_other
+				ok := call(worker, "Worker.DoTask", &task, nil)
+				if ok {
+					wg.Done()
+					registerChan <- worker
+					break
+				}
+			}
+		}
 	}
 	wg.Wait()
 	fmt.Printf("Schedule: %v done\n", phase)
