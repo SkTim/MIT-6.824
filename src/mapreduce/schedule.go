@@ -14,7 +14,7 @@ import (
 // suitable for passing to call(). registerChan will yield all
 // existing registered workers (if any) and new ones as they register.
 //
-func assign_job(i int, n_other int, mapFiles []string, phase JobPhase, registerChan chan string) {
+func assign_job(wg sync.WaitGroup, jobName string, i int, n_other int, mapFiles []string, phase jobPhase, registerChan chan string) {
 	for {
 	worker := <-registerChan
 	var task DoTaskArgs
@@ -52,8 +52,8 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	//
 	var wg sync.WaitGroup
 	for i := 0; i < ntasks; i++ {
-		wg.add(1)
-		go assign_job(i, n_other, mapFiles, phase, registerChan)
+		wg.Add(1)
+		go assign_job(wg, jobName, i, n_other, mapFiles, phase, registerChan)
 	}
 	wg.Wait()
 	fmt.Printf("Schedule: %v done\n", phase)
