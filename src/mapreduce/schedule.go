@@ -58,7 +58,14 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 				worker := <-registerChan
 				var task DoTaskArgs
 				task.JobName = jobName
-				task.File = mapFiles[i]
+				var fn string
+				switch phase {
+				case mapPhase:
+					fn = mapFiles[i]
+				case reducePhase:
+					fn = ""
+				}
+				task.File = fn
 				task.Phase = phase
 				task.NumOtherPhase = n_other
 				ok := call(worker, "Worker.DoTask", &task, nil)
