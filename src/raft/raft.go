@@ -17,6 +17,7 @@ package raft
 //   in the same server.
 //
 
+// import "fmt"
 import "sync"
 import "labrpc"
 import "time"
@@ -76,7 +77,7 @@ type Raft struct {
 	voteCount int
 	chanCommit chan bool
 	chanHeartbeat chan bool
-	chanGrantVote chan bool
+	// chanGrantVote chan bool
 	chanLeader chan bool
 	chanApply chan ApplyMsg
 
@@ -103,7 +104,7 @@ func (rf *Raft) GetState() (int, bool) {
 	var isleader bool
 	// Your code here (2A).
 	term = rf.currentTerm
-	isleader = (rf.state == 2)
+	isleader = (rf.state == STATE_LEADER)
 	return term, isleader
 }
 
@@ -207,7 +208,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	reply.Term = rf.currentTerm
 
 	if rf.votedFor == -1 || rf.votedFor == args.CandidateId {
-		rf.chanGrantVote <- true
+		// rf.chanGrantVote <- true
 		rf.state = STATE_FLLOWER
 		reply.VoteGranted = true
 		rf.votedFor = args.CandidateId
@@ -415,7 +416,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.currentTerm = 0
 	rf.chanCommit = make(chan bool,100)
 	rf.chanHeartbeat = make(chan bool,100)
-	rf.chanGrantVote = make(chan bool,100)
+	// rf.chanGrantVote = make(chan bool,100)
 	rf.chanLeader = make(chan bool,100)
 	rf.chanApply = applyCh
 
@@ -426,14 +427,15 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		for {
 			switch rf.state {
 			case STATE_FLLOWER:
+				// fmt.Printf("Follower:%v, num of servers %v\n",rf.me,len(rf.peers))
 				select {
 				case <-rf.chanHeartbeat:
-				case <-rf.chanGrantVote:
+				// case <-rf.chanGrantVote:
 				case <-time.After(time.Duration(rand.Int63() % 333 + 550) * time.Millisecond):
 					rf.state = STATE_CANDIDATE
 				}
 			case STATE_LEADER:
-				//fmt.Printf("Leader:%v %v\n",rf.me,"boatcastAppendEntries	")
+				// fmt.Printf("Leader:%v, num of servers %v\n",rf.me,len(rf.peers))
 				rf.boatcastAppendEntries()
 				time.Sleep(HBINTERVAL)
 			case STATE_CANDIDATE:
@@ -444,16 +446,16 @@ func Make(peers []*labrpc.ClientEnd, me int,
 				rf.persist()
 				rf.mu.Unlock()
 			  go rf.boatcastRequestVote()
-				fmt.Printf("%v become CANDIDATE %v\n",rf.me,rf.currentTerm)
+				// fmt.Printf("%v become CANDIDATE %v\n",rf.me,rf.currentTerm)
 				select {
 				case <-time.After(time.Duration(rand.Int63() % 333 + 550) * time.Millisecond):
 				case <-rf.chanHeartbeat:
 					rf.state = STATE_FLLOWER
-					fmt.Printf("CANDIDATE %v reveive chanHeartbeat\n",rf.me)
+					// fmt.Printf("CANDIDATE %v reveive chanHeartbeat\n",rf.me)
 				case <-rf.chanLeader:
 					rf.mu.Lock()
 					rf.state = STATE_LEADER
-					fmt.Printf("%v is Leader\n",rf.me)
+					// fmt.Printf("%v is Leader\n",rf.me)
 					// rf.nextIndex = make([]int,len(rf.peers))
 					// rf.matchIndex = make([]int,len(rf.peers))
 					// for i := range rf.peers {
