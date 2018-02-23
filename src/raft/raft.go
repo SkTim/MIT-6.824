@@ -438,7 +438,7 @@ func (rf *Raft) boatcastRequestVote() {
 			go func(i int) {
 				var reply RequestVoteReply
 				//fmt.Printf("%v RequestVote to %v\n",rf.me,i)
-				rf.sendRequestVote(i, args, &reply)
+				rf.sendRequestVote(i, &args, &reply)
 			}(i)
 		}
 	}
