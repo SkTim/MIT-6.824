@@ -17,6 +17,7 @@ package raft
 //   in the same server.
 //
 
+import "fmt"
 import "sync"
 import "labrpc"
 import "time"
@@ -220,7 +221,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		rf.state = STATE_FLLOWER
 		reply.VoteGranted = true
 		rf.votedFor = args.CandidateId
-		DPrintf("server %v vote for server %v in term %v", rf.me, args.CandidateId, rf.currentTerm)
+		fmt.Printf("server %v vote for server %v in term %v", rf.me, args.CandidateId, rf.currentTerm)
 	}
 }
 
