@@ -262,7 +262,7 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 			if rf.state == STATE_CANDIDATE && rf.voteCount > len(rf.peers)/2 {
 				// rf.state = STATE_FLLOWER
 				rf.chanLeader <- true
-				DPrintf("server %d got %d votes in all %d servers", rf.me, rf.voteCount, len(rf.peer))
+				DPrintf("server %d got %d votes in all %d servers", rf.me, rf.voteCount, len(rf.peers))
 			}
 		}
 	}
