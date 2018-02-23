@@ -220,6 +220,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		rf.state = STATE_FLLOWER
 		reply.VoteGranted = true
 		rf.votedFor = args.CandidateId
+		DPrintf("server %v vote for server %v in term %v", rf.me, args.CandidateId, rf.currentTerm)
 	}
 }
 
@@ -268,7 +269,7 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 		if reply.VoteGranted {
 			rf.voteCount++
 			if rf.state == STATE_CANDIDATE && rf.voteCount > len(rf.peers)/2 {
-				rf.state = STATE_FLLOWER
+				// rf.state = STATE_FLLOWER
 				rf.chanLeader <- true
 			}
 		}
@@ -285,7 +286,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	reply.Success = false
 	if args.Term < rf.currentTerm {
 		reply.Term = rf.currentTerm
-		reply.NextIndex = rf.getLastIndex() + 1
+		// reply.NextIndex = rf.getLastIndex() + 1
 		return
 	}
 	rf.chanHeartbeat <- true
