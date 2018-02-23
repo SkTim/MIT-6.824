@@ -215,20 +215,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	}
 	reply.Term = rf.currentTerm
 
-	term := rf.getLastTerm()
-	index := rf.getLastIndex()
-	uptoDate := false
-
-	if args.LastLogTerm > term {
-		uptoDate = true
-	}
-
-	if args.LastLogTerm == term && args.LastLogIndex >= index { // at least up to date
-		uptoDate = true
-	}
-
-
-	if (rf.votedFor == -1 || rf.votedFor == args.CandidateId) && uptoDate {
+	if rf.votedFor == -1 || rf.votedFor == args.CandidateId {
 		rf.chanGrantVote <- true
 		rf.state = STATE_FLLOWER
 		reply.VoteGranted = true
