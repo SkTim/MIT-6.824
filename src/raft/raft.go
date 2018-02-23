@@ -444,16 +444,16 @@ func Make(peers []*labrpc.ClientEnd, me int,
 				rf.persist()
 				rf.mu.Unlock()
 			  go rf.boatcastRequestVote()
-				//fmt.Printf("%v become CANDIDATE %v\n",rf.me,rf.currentTerm)
+				fmt.Printf("%v become CANDIDATE %v\n",rf.me,rf.currentTerm)
 				select {
 				case <-time.After(time.Duration(rand.Int63() % 333 + 550) * time.Millisecond):
 				case <-rf.chanHeartbeat:
 					rf.state = STATE_FLLOWER
-				//	fmt.Printf("CANDIDATE %v reveive chanHeartbeat\n",rf.me)
+					fmt.Printf("CANDIDATE %v reveive chanHeartbeat\n",rf.me)
 				case <-rf.chanLeader:
 					rf.mu.Lock()
 					rf.state = STATE_LEADER
-					//fmt.Printf("%v is Leader\n",rf.me)
+					fmt.Printf("%v is Leader\n",rf.me)
 					// rf.nextIndex = make([]int,len(rf.peers))
 					// rf.matchIndex = make([]int,len(rf.peers))
 					// for i := range rf.peers {
