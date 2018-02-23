@@ -42,10 +42,10 @@ type ApplyMsg struct {
 	CommandIndex int
 }
 
-type Logs struct {
-	Term int
-	Index int
-	Command interface{}
+type LogEntry struct {
+	LogTerm int
+	LogIndex int
+	lOGComd interface{}
 }
 
 //
