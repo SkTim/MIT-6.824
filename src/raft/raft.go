@@ -27,7 +27,7 @@ const (
 	STATE_CANDIDATE
 	STATE_FLLOWER
 
-	HBINTERVAL = 50 * time.Millisecond // 50ms
+	HBINTERVAL = 100 * time.Millisecond // 50ms
 )
 
 // import "bytes"
