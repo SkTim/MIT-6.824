@@ -107,15 +107,6 @@ func (rf *Raft) GetState() (int, bool) {
 	return term, isleader
 }
 
-func (rf *Raft) getLastIndex() int {
-	return rf.log[len(rf.log) - 1].LogIndex
-}
-
-func (rf *Raft) getLastTerm() int {
-	return rf.log[len(rf.log) - 1].LogTerm
-}
-
-
 //
 // save Raft's persistent state to stable storage,
 // where it can later be retrieved after a crash and restart.
@@ -271,6 +262,7 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 			if rf.state == STATE_CANDIDATE && rf.voteCount > len(rf.peers)/2 {
 				// rf.state = STATE_FLLOWER
 				rf.chanLeader <- true
+				Dprintf("server %d got %d votes in all %d servers", rf.me, rf.voteCount, len(rf.peer))
 			}
 		}
 	}
@@ -362,8 +354,6 @@ func (rf *Raft) boatcastRequestVote() {
 	rf.mu.Lock()
 	args.Term = rf.currentTerm
 	args.CandidateId = rf.me
-	args.LastLogTerm = rf.getLastTerm()
-	args.LastLogIndex = rf.getLastIndex()
 	rf.mu.Unlock()
 
 	for i := range rf.peers {
