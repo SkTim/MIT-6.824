@@ -55,7 +55,7 @@ type ApplyMsg struct {
 type LogEntry struct {
 	LogTerm int
 	LogIndex int
-	logComd interface{}
+	LogComd interface{}
 }
 
 //
@@ -552,7 +552,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 			  commitIndex := rf.commitIndex
 				baseIndex := rf.log[0].LogIndex
 				for i := rf.lastApplied+1; i <= commitIndex; i++ {
-					msg := ApplyMsg{Index: i, Command: rf.log[i-baseIndex].LogComd}
+					msg := ApplyMsg{CommandIndex: i, Command: rf.log[i-baseIndex].LogComd}
 					applyCh <- msg
 					//fmt.Printf("me:%d %v\n",rf.me,msg)
 					rf.lastApplied = i
