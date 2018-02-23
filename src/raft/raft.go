@@ -221,7 +221,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		rf.state = STATE_FLLOWER
 		reply.VoteGranted = true
 		rf.votedFor = args.CandidateId
-		fmt.Printf("server %v vote for server %v in term %v", rf.me, args.CandidateId, rf.currentTerm)
+		DPrintf("server %v vote for server %v in term %v", rf.me, args.CandidateId, rf.currentTerm)
 	}
 }
 
