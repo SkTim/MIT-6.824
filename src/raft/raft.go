@@ -23,13 +23,6 @@ import "labrpc"
 import "time"
 import "math/rand"
 
-const (
-	STATE_LEADER = iota
-	STATE_CANDIDATE
-	STATE_FLLOWER
-
-	HBINTERVAL = 100 * time.Millisecond // 50ms
-)
 
 // import "bytes"
 // import "labgob"
@@ -54,9 +47,9 @@ type ApplyMsg struct {
 }
 
 type LogEntry struct {
-	LogTerm int
-	LogIndex int
-	LogComd interface{}
+	Term int
+	Index int
+	Command interface{}
 }
 
 //
@@ -72,27 +65,22 @@ type Raft struct {
 	// Look at the paper's Figure 2 for a description of what
 	// state a Raft server must maintain.
 
-	//channel
 	state int
 	voteCount int
-	chanCommit chan bool
-	chanHeartbeat chan bool
-	// chanGrantVote chan bool
-	chanLeader chan bool
-	chanApply chan ApplyMsg
 
-	//persistent state on all server
 	currentTerm int
 	votedFor int
-	log	[]LogEntry
+	logs []LogEntry
 
-	//volatile state on all servers
 	commitIndex int
 	lastApplied int
 
-	//volatile state on leader
 	nextIndex []int
 	matchIndex []int
+
+	HBChannel chan bool
+	LeaderChannel chan bool
+	ApplyMsgChannel chan ApplyMsg
 
 }
 
@@ -104,7 +92,7 @@ func (rf *Raft) GetState() (int, bool) {
 	var isleader bool
 	// Your code here (2A).
 	term = rf.currentTerm
-	isleader = (rf.state == STATE_LEADER)
+	isleader = (rf.state == 2)
 	return term, isleader
 }
 
@@ -183,7 +171,6 @@ type AppendEntriesArgs struct {
 type AppendEntriesReply struct {
 	Term int
 	Success bool
-	NextIndex int
 }
 
 //
@@ -192,7 +179,6 @@ type AppendEntriesReply struct {
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Your code here (2A, 2B).
 	rf.mu.Lock()
-	defer rf.mu.Unlock()
 	
 	reply.VoteGranted = false
 	if args.Term < rf.currentTerm {
@@ -202,18 +188,19 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 
 	if args.Term > rf.currentTerm {
 		rf.currentTerm = args.Term
-		rf.state = STATE_FLLOWER
+		rf.state = 0
 		rf.votedFor = -1
 	}
 	reply.Term = rf.currentTerm
 
 	if rf.votedFor == -1 || rf.votedFor == args.CandidateId {
 		// rf.chanGrantVote <- true
-		rf.state = STATE_FLLOWER
+		rf.state = 0
 		reply.VoteGranted = true
 		rf.votedFor = args.CandidateId
 		DPrintf("server %v vote for server %v in term %v", rf.me, args.CandidateId, rf.currentTerm)
 	}
+	rf.mu.Unlock()
 }
 
 //
@@ -250,19 +237,18 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 	rf.mu.Lock()
 	if ok {
 		term := rf.currentTerm
-		if rf.state != STATE_CANDIDATE {
+		if rf.state != 1 {
 			return ok
 		}
 		if reply.Term > term {
 			rf.currentTerm = reply.Term
-			rf.state = STATE_FLLOWER
+			rf.state = 0
 			rf.votedFor = -1
 		}
 		if reply.VoteGranted {
-			rf.voteCount++
-			if rf.state == STATE_CANDIDATE && rf.voteCount > len(rf.peers)/2 {
-				// rf.state = STATE_FLLOWER
-				rf.chanLeader <- true
+			rf.voteCount += 1
+			if rf.state == 1 && rf.voteCount > len(rf.peers)/2 {
+				rf.LeaderChannel <- true
 				DPrintf("server %d got %d votes in all %d servers", rf.me, rf.voteCount, len(rf.peers))
 			}
 		}
@@ -272,33 +258,30 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 }
 
 func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
-	// Your code here.
 	rf.mu.Lock()
-	defer rf.mu.Unlock()
 
 	reply.Success = false
 	if args.Term < rf.currentTerm {
 		reply.Term = rf.currentTerm
-		// reply.NextIndex = rf.getLastIndex() + 1
 		return
 	}
-	rf.chanHeartbeat <- true
+	rf.HBChannel <- true
 	if args.Term > rf.currentTerm {
 		rf.currentTerm = args.Term
-		rf.state = STATE_FLLOWER
+		rf.state = 0
 		rf.votedFor = -1
 	}
 	reply.Term = args.Term
 	reply.Success = true
+	rf.mu.Unlock()
 	return
 }
 
 func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *AppendEntriesReply) bool {
 	ok := rf.peers[server].Call("Raft.AppendEntries", args, reply)
 	rf.mu.Lock()
-	defer rf.mu.Unlock()
 	if ok {
-		if rf.state != STATE_LEADER {
+		if rf.state != 2 {
 			return ok
 		}
 		if args.Term != rf.currentTerm {
@@ -307,11 +290,12 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 
 		if reply.Term > rf.currentTerm {
 			rf.currentTerm = reply.Term
-			rf.state = STATE_FLLOWER
+			rf.state = 0
 			rf.votedFor = -1
 			return ok
 		}
 	}
+	rf.mu.Unlock()
 	return ok
 }
 
@@ -352,43 +336,50 @@ func (rf *Raft) Kill() {
 
 func (rf *Raft) boatcastRequestVote() {
 	var args RequestVoteArgs
+	numVote := 0
 	rf.mu.Lock()
 	args.Term = rf.currentTerm
 	args.CandidateId = rf.me
 	rf.mu.Unlock()
 
 	for i := range rf.peers {
-		if i != rf.me && rf.state == STATE_CANDIDATE {
+		if i != rf.me && rf.state == 1 {
 			go func(i int) {
 				var reply RequestVoteReply
-				//fmt.Printf("%v RequestVote to %v\n",rf.me,i)
-				rf.sendRequestVote(i, &args, &reply)
+				ok := rf.sendRequestVote(i, &args, &reply)
+				if ok {numVote += 1}
 			}(i)
 		}
 	}
+
+	// rf.mu.Lock()
+	// if numVote == 0 {<-rf.LeaderChannel}
+	// rf.mu.Unlock()
 }
 
 func (rf *Raft) boatcastAppendEntries() {
-
+	numFollower := 0
 	for i := range rf.peers {
-		if i != rf.me && rf.state == STATE_LEADER {
-
+		if i != rf.me && rf.state == 2 {
 			var args AppendEntriesArgs
 			args.Term = rf.currentTerm
 			args.LeaderId = rf.me
-			// args.PrevLogIndex = rf.nextIndex[i] - 1
-			// fmt.Printf("baseIndex:%d PrevLogIndex:%d\n",baseIndex,args.PrevLogIndex )
-			// args.PrevLogTerm = rf.log[args.PrevLogIndex-baseIndex].LogTerm
-			// args.Entries = make([]LogEntry, len(rf.log[args.PrevLogIndex + 1:]))
-			// args.Entries = make([]LogEntry, len(rf.log[args.PrevLogIndex + 1-baseIndex:]))
-			// copy(args.Entries, rf.log[args.PrevLogIndex + 1-baseIndex:])
 			args.LeaderCommit = rf.commitIndex
 			go func(i int,args AppendEntriesArgs) {
 				var reply AppendEntriesReply
-				rf.sendAppendEntries(i, &args, &reply)
+				ok := rf.sendAppendEntries(i, &args, &reply)
+				if ok {numFollower += 1}
 			}(i,args)
 		}
 	}
+	/*
+	if rf.state == 2 && numFollower == 0 {
+		rf.mu.Lock()
+		rf.state = 0
+		rf.votedFor = -1
+		rf.mu.Unlock()
+	}
+	*/
 }
 
 //
@@ -410,15 +401,13 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.me = me
 
 	// Your initialization code here (2A, 2B, 2C).
-	rf.state = STATE_FLLOWER
+	rf.state = 0
 	rf.votedFor = -1
-	rf.log = append(rf.log, LogEntry{LogTerm: 0})
+	rf.logs = append(rf.logs, LogEntry{Term: 0})
 	rf.currentTerm = 0
-	rf.chanCommit = make(chan bool,100)
-	rf.chanHeartbeat = make(chan bool,100)
-	// rf.chanGrantVote = make(chan bool,100)
-	rf.chanLeader = make(chan bool,100)
-	rf.chanApply = applyCh
+	rf.HBChannel = make(chan bool,100)
+	rf.LeaderChannel = make(chan bool,100)
+	rf.ApplyMsgChannel = applyCh
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
@@ -426,19 +415,20 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	go func() {
 		for {
 			switch rf.state {
-			case STATE_FLLOWER:
-				// fmt.Printf("Follower:%v, num of servers %v\n",rf.me,len(rf.peers))
+			// Follower
+			case 0:
 				select {
-				case <-rf.chanHeartbeat:
-				// case <-rf.chanGrantVote:
-				case <-time.After(time.Duration(rand.Int63() % 333 + 550) * time.Millisecond):
-					rf.state = STATE_CANDIDATE
+				case <-rf.HBChannel:
+				case <-time.After(time.Duration(rand.Int63() % 150 + 150) * time.Millisecond):
+					rf.state = 1
 				}
-			case STATE_LEADER:
-				// fmt.Printf("Leader:%v, num of servers %v\n",rf.me,len(rf.peers))
+			// Leader
+			case 2:
+				DPrintf("Leader is %v", rf.me)
 				rf.boatcastAppendEntries()
-				time.Sleep(HBINTERVAL)
-			case STATE_CANDIDATE:
+				time.Sleep(100 * time.Millisecond)
+			// Candidate
+			case 1:
 				rf.mu.Lock()
 				rf.currentTerm++
 				rf.votedFor = rf.me
@@ -446,24 +436,14 @@ func Make(peers []*labrpc.ClientEnd, me int,
 				rf.persist()
 				rf.mu.Unlock()
 			  go rf.boatcastRequestVote()
-				// fmt.Printf("%v become CANDIDATE %v\n",rf.me,rf.currentTerm)
 				select {
-				case <-time.After(time.Duration(rand.Int63() % 333 + 550) * time.Millisecond):
-				case <-rf.chanHeartbeat:
-					rf.state = STATE_FLLOWER
-					// fmt.Printf("CANDIDATE %v reveive chanHeartbeat\n",rf.me)
-				case <-rf.chanLeader:
+				case <-time.After(time.Duration(rand.Int63() % 150 + 150) * time.Millisecond):
+				case <-rf.HBChannel:
+					rf.state = 0
+				case <-rf.LeaderChannel:
 					rf.mu.Lock()
-					rf.state = STATE_LEADER
-					// fmt.Printf("%v is Leader\n",rf.me)
-					// rf.nextIndex = make([]int,len(rf.peers))
-					// rf.matchIndex = make([]int,len(rf.peers))
-					// for i := range rf.peers {
-					// 	rf.nextIndex[i] = rf.getLastIndex() + 1
-					// 	rf.matchIndex[i] = 0
-					// }
+					rf.state = 2
 					rf.mu.Unlock()
-					//rf.boatcastAppendEntries()
 				}
 			}
 		}
