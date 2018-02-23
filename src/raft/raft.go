@@ -17,7 +17,6 @@ package raft
 //   in the same server.
 //
 
-import "fmt"
 import "sync"
 import "labrpc"
 import "time"
