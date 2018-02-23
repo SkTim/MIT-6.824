@@ -273,9 +273,6 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 		if rf.state != STATE_CANDIDATE {
 			return ok
 		}
-		if args.Term != term {
-			return ok
-		}
 		if reply.Term > term {
 			rf.currentTerm = reply.Term
 			rf.state = STATE_FLLOWER
