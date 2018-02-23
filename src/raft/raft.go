@@ -19,6 +19,16 @@ package raft
 
 import "sync"
 import "labrpc"
+import "time"
+import "math/rand"
+
+const (
+	STATE_LEADER = iota
+	STATE_CANDIDATE
+	STATE_FLLOWER
+
+	HBINTERVAL = 50 * time.Millisecond // 50ms
+)
 
 // import "bytes"
 // import "labgob"
@@ -95,6 +105,16 @@ func (rf *Raft) GetState() (int, bool) {
 	term = rf.currentTerm
 	isleader = (rf.state == 2)
 	return term, isleader
+}
+
+func (rf *Raft) getLastIndex() int {
+	return rf.log[len(rf.log) - 1].LogIndex
+}
+func (rf *Raft) getLastTerm() int {
+	return rf.log[len(rf.log) - 1].LogTerm
+}
+func (rf *Raft) IsLeader() bool {
+	return rf.state == STATE_LEADER
 }
 
 
